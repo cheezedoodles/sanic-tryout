@@ -2,20 +2,23 @@ from sanic import Sanic, response
 
 from tortoise.contrib.sanic import register_tortoise
 
-from models import User
+from models import Users
+from authorization import registration
 
 app = Sanic(__name__)
+
+app.blueprint(registration)
 
 
 @app.get("/")
 async def hello_world(request):
-    users = await User.all()
+    users = await Users.all()
     return response.json({'users': [str(user) for user in users]})
 
 
 register_tortoise(
     app, 
-    db_url='postgres://postgres:postgrespw@localhost:49153', 
+    db_url='postgres://postgres:postgrespw@localhost:49157/shop_app', 
     modules={'models': ['models']}, 
     generate_schemas=True
 )
