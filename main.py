@@ -34,10 +34,10 @@ async def hello_world(request):
     return text('welcome')
 
 
-@app.get("/goods/page/<page:int>")
-async def get_goods(request, page):
+@app.get("/products/page/<page:int>")
+async def get_products(request, page):
     """
-    returns a list of goods (in quantity of ROWS_PER_PAGE)
+    returns a list of products (in quantity of ROWS_PER_PAGE)
     """
     if page <= 0:
         raise SanicException("Invalid page number", status_code=400)
@@ -51,6 +51,30 @@ async def get_goods(request, page):
     #     next = None
     # products.append({'next': next})
     return json(products)
+
+
+@app.post("/products/<product_id:int>")
+@protected()
+@inject_user()
+async def buy_product(request, product_id, user):
+    """
+    endpoint for buying a product:
+    requires a bill_id that has required amount of money,
+    otherwise returns 400
+    """
+    bill_id = request.json.get('bill_id', None)
+    try:
+        product = await Products.get(pk=product_id)
+    except DoesNotExist:
+        return json({}, status=400)
+
+    account = await BankAccounts.get_or_none(bill_id=bill_id,
+                                             user_id=user['id'])
+    if account and account.balance >= product.price:
+        account.balance -= product.price
+        await account.save()
+        return json({"balance": account.balance}, status=200)
+    return json({}, status=400)
 
 
 @app.get("/account/create")
@@ -100,6 +124,34 @@ async def replenish_balance(request):
                      'amount': amount}, status=201)
     return json({}, status=400)
 
+
+@app.get('/balance')
+@protected()
+@inject_user()
+async def show_balance(request, user):
+    accounts = await BankAccounts.filter(user_id=user['id'])\
+                                 .values('id', 'bill_id', 'balance')
+    for account in accounts:
+        account['bill_id'] = str(account['bill_id'])
+    return json(accounts, status=200)
+
+
+@app.get('/transactions')
+@protected()
+@inject_user()
+async def show_transactions(request, user):
+    user_id = user['id']
+    transactions = await Transactions.raw(
+        f"select * from transactions where account_id_id in (select id from bankaccounts where user_id={user_id});"
+    )  # remove raw SQL
+    queryset = []
+    for transaction in transactions:
+        item = {
+                "transaction_id": transaction.id,
+                "amount": transaction.amount
+               }
+        queryset.append(item)
+    return json(queryset, status=200)
 
 register_tortoise(
     app,
