@@ -12,6 +12,7 @@ from tortoise.exceptions import DoesNotExist
 from auth import registration, authenticate, retrieve_user
 from models import Products, BankAccounts, Transactions, Users
 from utils import ROWS_PER_PAGE, generate_signature
+from admin import admin
 
 
 app = Sanic(__name__)
@@ -25,7 +26,10 @@ initialize(
     authenticate=authenticate,
     retrieve_user=retrieve_user
 )
-app.blueprint(registration)
+app.blueprint(
+    (registration, admin)
+)
+
 
 
 @app.get("/")
