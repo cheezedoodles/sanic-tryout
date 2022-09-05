@@ -1,8 +1,9 @@
+import os
+
 from Crypto.Hash import SHA1
-from sanic import Sanic
 
 ROWS_PER_PAGE = 5
-# app = Sanic.get_app('main')
+PRIVATE_KEY = os.environ.get('PRIVATE_KEY')
 
 
 async def make_verification_link(id, username):
@@ -22,8 +23,16 @@ async def verify_link(link, id, username):
     return False
 
 
-# async def generate_signature(transaction_id, user_id, bill_id, amount):
-#     signature = SHA1.new()\
-#                     .update(f'{app.config.PRIVATE_KEY}:{transaction_id}:{user_id}:{bill_id}:{amount}'.encode())\
-#                     .hexdigest()
-#     return signature
+async def generate_signature(transaction_id, user_id, bill_id, amount):
+    """
+    generates a signature when replenishing balance
+    """
+    signature = SHA1.new()
+    byte_string = f'{PRIVATE_KEY}:\
+                    {transaction_id}:\
+                    {user_id}:\
+                    {bill_id}:\
+                    {amount}'\
+                    .encode()
+    signature.update(byte_string)
+    return signature.hexdigest()

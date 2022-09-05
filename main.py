@@ -9,8 +9,8 @@ from sanic_jwt import initialize, protected, inject_user
 from tortoise.contrib.sanic import register_tortoise
 
 from auth import registration, authenticate, retrieve_user
-from models import Products, BankAccounts
-from utils import ROWS_PER_PAGE
+from models import Products, BankAccounts, Transactions
+from utils import ROWS_PER_PAGE, generate_signature
 
 
 app = Sanic(__name__)
@@ -56,21 +56,44 @@ async def get_goods(request, page):
 @protected()
 @inject_user()
 async def create_account(request, user):
+    """
+    creates a new bank account
+    """
     bill_id = uuid.uuid4()
     account = await BankAccounts.create(user_id=user['id'],
                                         bill_id=bill_id)
-    return json({'account_id': account.id}, status=200)
+    return json({'bill_id': str(account.bill_id)}, status=200)
 
 
-# @app.post("/payment/webhook")
-# @protected()
-# @inject_user()
-# async def replenish_balance(request, user):
-#     return json({'signature': '',
-#                  'transaction_id': '',
-#                  'user_id': '',
-#                  'bill_id': '',
-#                  'amount': ''})
+@app.post("/payment/webhook")
+@protected()
+@inject_user()
+async def replenish_balance(request, user):
+    """
+    endpoint that replenishes balance: creates a transaction and
+    returns information about it
+    expects bill_id and amount, returns 400 otherwise
+    """
+    bill_id = request.json.get('bill_id', None)
+    amount = request.json.get('amount', None)
+    if bill_id and amount:
+        account = await BankAccounts.get_or_create(user_id=user['id'],
+                                                   bill_id=bill_id)
+        account = account[0]
+        transaction = await Transactions.create(account_id_id=account.id,
+                                                amount=amount)
+        account.balance += amount
+        await account.save()
+        signature = await generate_signature(transaction_id=transaction.id,
+                                             user_id=user['id'],
+                                             bill_id=bill_id,
+                                             amount=amount)
+        return json({'signature': signature,
+                     'transaction_id': transaction.id,
+                     'user_id': user['id'],
+                     'bill_id': bill_id,
+                     'amount': amount}, status=201)
+    return json({}, status=400)
 
 
 register_tortoise(

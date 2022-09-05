@@ -33,8 +33,8 @@ class BankAccounts(Model):
 
 class Transactions(Model):
     id = fields.BigIntField(pk=True)
-    bill_id = fields.ForeignKeyField('models.BankAccounts',
-                                     related_name='transaction',
-                                     on_delete=fields.CASCADE)
+    account_id = fields.ForeignKeyField('models.BankAccounts',
+                                        related_name='transaction',
+                                        on_delete=fields.CASCADE)
     amount = fields.BigIntField()
     date = fields.DatetimeField(auto_now_add=True)
