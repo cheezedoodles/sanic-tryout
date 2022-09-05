@@ -7,9 +7,10 @@ from sanic.exceptions import SanicException
 from sanic_jwt import initialize, protected, inject_user
 
 from tortoise.contrib.sanic import register_tortoise
+from tortoise.exceptions import DoesNotExist
 
 from auth import registration, authenticate, retrieve_user
-from models import Products, BankAccounts, Transactions
+from models import Products, BankAccounts, Transactions, Users
 from utils import ROWS_PER_PAGE, generate_signature
 
 
@@ -67,17 +68,21 @@ async def create_account(request, user):
 
 @app.post("/payment/webhook")
 @protected()
-@inject_user()
-async def replenish_balance(request, user):
+async def replenish_balance(request):
     """
     endpoint that replenishes balance: creates a transaction and
     returns information about it
     expects bill_id and amount, returns 400 otherwise
     """
     bill_id = request.json.get('bill_id', None)
+    username = request.json.get('username', None)
     amount = request.json.get('amount', None)
+    try:
+        user = await Users.get(username=username)
+    except DoesNotExist:
+        return json({'Error': 'Incorrect username'}, status=400)
     if bill_id and amount:
-        account = await BankAccounts.get_or_create(user_id=user['id'],
+        account = await BankAccounts.get_or_create(user_id=user.id,
                                                    bill_id=bill_id)
         account = account[0]
         transaction = await Transactions.create(account_id_id=account.id,
@@ -85,12 +90,12 @@ async def replenish_balance(request, user):
         account.balance += amount
         await account.save()
         signature = await generate_signature(transaction_id=transaction.id,
-                                             user_id=user['id'],
+                                             user_id=user.id,
                                              bill_id=bill_id,
                                              amount=amount)
         return json({'signature': signature,
                      'transaction_id': transaction.id,
-                     'user_id': user['id'],
+                     'user_id': user.id,
                      'bill_id': bill_id,
                      'amount': amount}, status=201)
     return json({}, status=400)
