@@ -28,7 +28,7 @@ class BankAccounts(Model):
                                   related_name='account',
                                   on_delete=fields.CASCADE)
     bill_id = fields.UUIDField(unique=True)
-    balance = fields.BigIntField()
+    balance = fields.BigIntField(default=0)
 
 
 class Transactions(Model):

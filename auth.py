@@ -59,4 +59,14 @@ async def authenticate(request, *args, **kwargs):
 
     if password != user['password']:
         raise AuthenticationFailed('Incorrect password')
+
     return user
+
+
+async def retrieve_user(request, payload, *args, **kwargs):
+    if payload:
+        user_id = payload.get('id', None)
+        user = await Users.get(id=user_id).values()
+        return user
+    else:
+        return None

@@ -1,20 +1,29 @@
 import os
+import uuid
 from sanic import Sanic, text
 from sanic.response import json
 from sanic.exceptions import SanicException
 
-from sanic_jwt import initialize, protected
+from sanic_jwt import initialize, protected, inject_user
 
 from tortoise.contrib.sanic import register_tortoise
 
-from auth import registration, authenticate
-from models import Products
+from auth import registration, authenticate, retrieve_user
+from models import Products, BankAccounts
 from utils import ROWS_PER_PAGE
 
 
 app = Sanic(__name__)
 app.config.DB_URL = os.environ.get('DB_URL')
-initialize(app, access_token_name='jwt', authenticate=authenticate)
+app.config.PRIVATE_KEY = os.environ.get('PRIVATE_KEY')
+
+initialize(
+    app,
+    access_token_name='jwt',
+    user_id='id',
+    authenticate=authenticate,
+    retrieve_user=retrieve_user
+)
 app.blueprint(registration)
 
 
@@ -41,6 +50,27 @@ async def get_goods(request, page):
     #     next = None
     # products.append({'next': next})
     return json(products)
+
+
+@app.get("/account/create")
+@protected()
+@inject_user()
+async def create_account(request, user):
+    bill_id = uuid.uuid4()
+    account = await BankAccounts.create(user_id=user['id'],
+                                        bill_id=bill_id)
+    return json({'account_id': account.id}, status=200)
+
+
+# @app.post("/payment/webhook")
+# @protected()
+# @inject_user()
+# async def replenish_balance(request, user):
+#     return json({'signature': '',
+#                  'transaction_id': '',
+#                  'user_id': '',
+#                  'bill_id': '',
+#                  'amount': ''})
 
 
 register_tortoise(
