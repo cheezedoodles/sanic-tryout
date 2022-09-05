@@ -24,17 +24,17 @@ class Products(Model):
 
 class BankAccounts(Model):
     id = fields.IntField(pk=True)
-    user = fields.ForeignKeyField('models.Users',
-                                  related_name='account',
-                                  on_delete=fields.CASCADE)
+    user = fields.ForeignKeyField(
+        "models.Users", related_name="account", on_delete=fields.CASCADE
+    )
     bill_id = fields.UUIDField(unique=True)
     balance = fields.BigIntField(default=0)
 
 
 class Transactions(Model):
     id = fields.BigIntField(pk=True)
-    account_id = fields.ForeignKeyField('models.BankAccounts',
-                                        related_name='transaction',
-                                        on_delete=fields.CASCADE)
+    account_id = fields.ForeignKeyField(
+        "models.BankAccounts", related_name="transaction", on_delete=fields.CASCADE
+    )
     amount = fields.BigIntField()
     date = fields.DatetimeField(auto_now_add=True)
